@@ -1,15 +1,18 @@
 package poussecafe.spring;
 
-import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import poussecafe.apm.ApplicationPerformanceMonitoring;
-import poussecafe.apm.DefaultApplicationPerformanceMonitoring;
-import poussecafe.environment.Bundle;
+import poussecafe.messaging.internal.InternalMessaging;
 import poussecafe.processing.MessageConsumptionConfiguration;
+import poussecafe.runtime.Bundles;
 import poussecafe.runtime.Runtime;
+import poussecafe.storage.internal.InternalStorage;
 
-public abstract class RuntimeConfiguration {
+@Configuration
+public class RuntimeConfiguration {
 
     @Bean
     public Runtime pousseCafeApplicationContext(
@@ -17,8 +20,10 @@ public abstract class RuntimeConfiguration {
             @Value("${poussecafe.core.processingThreads:1}") String processingThreads,
             @Value("${poussecafe.core.consumptionMaxRetries:50}") String consumptionMaxRetries,
             @Value("${poussecafe.core.consumptionBackOffCeiling:10}") String consumptionBackOffCeiling,
-            @Value("${poussecafe.core.consumptionBackOffSlotTime:3.0}") String consumptionBackOffSlotTime) {
-        return new Runtime.Builder()
+            @Value("${poussecafe.core.consumptionBackOffSlotTime:3.0}") String consumptionBackOffSlotTime,
+            @Autowired Bundles bundles,
+            @Autowired(required = false) ApplicationPerformanceMonitoring applicationPerformanceMonitoring) {
+        Runtime.Builder builder = new Runtime.Builder()
             .failOnDeserializationError(Boolean.valueOf(failOnDeserializationError))
             .processingThreads(Integer.parseInt(processingThreads))
             .messageConsumptionConfiguration(new MessageConsumptionConfiguration.Builder()
@@ -26,14 +31,20 @@ public abstract class RuntimeConfiguration {
                     .backOffCeiling(Integer.parseInt(consumptionBackOffCeiling))
                     .backOffSlotTime(Double.valueOf(consumptionBackOffSlotTime))
                     .build())
-            .applicationPerformanceMonitoring(applicationPerformanceMonitoring())
-            .withBundles(bundles())
-            .build();
+            .withBundles(bundles);
+        if(applicationPerformanceMonitoring != null) {
+            builder.applicationPerformanceMonitoring(applicationPerformanceMonitoring);
+        }
+        return builder.build();
     }
 
-    protected ApplicationPerformanceMonitoring applicationPerformanceMonitoring() {
-        return new DefaultApplicationPerformanceMonitoring();
+    @Bean
+    public InternalStorage internalStorage() {
+        return InternalStorage.instance();
     }
 
-    protected abstract List<Bundle> bundles();
+    @Bean
+    public InternalMessaging internalMessaging() {
+        return InternalMessaging.instance();
+    }
 }
