@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import poussecafe.environment.AggregateServices;
 import poussecafe.process.DomainProcess;
 import poussecafe.runtime.Runtime;
+import poussecafe.storage.Storage;
 
 @Component
 public class PousseCafeComponentsWirer implements ApplicationListener<ContextRefreshedEvent> {
@@ -33,6 +34,11 @@ public class PousseCafeComponentsWirer implements ApplicationListener<ContextRef
         for(Object service : pousseCafeRuntime.environment().services()) {
             logger.debug("Wiring service {}", service.getClass().getSimpleName());
             beanFactory.autowireBean(service);
+        }
+        for(Storage storage : pousseCafeRuntime.environment().storages()) {
+            logger.debug("Wiring storage {}", storage.getClass().getSimpleName());
+            beanFactory.autowireBean(storage.getTransactionRunner());
+            beanFactory.autowireBean(storage.getMessageSendingPolicy());
         }
     }
 
