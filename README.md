@@ -7,27 +7,46 @@ This project provides a bridge between Pousse-Café and Spring. It enables the i
 Spring beans. For instance, you can use Spring's `@Autowired` annotation to inject one of your Pousse-Café repositories
 into a Spring REST controller (i.e. a bean annotated with `@RestController`).
 
-The `RuntimeConfiguration` helper class may be used to configure your Runtime. Below an example of configuration file
-to add to your application:
+It also enables the injection of Spring beans in some Pousse-Café components:
+- Services,
+- Repositories,
+- Data Accesses,
+- Factories,
+- `TransactionRunner`,
+- `MessageSendingPolicy`.
 
-        @Configuration
-        @ComponentScan(basePackages = { "poussecafe.spring" }) // Required in order to enable the bridge
-        public class YourConfiguration extends RuntimeConfiguration {
-        
-            @Override
-            protected List<Bundle> bundles() {
-                MessagingAndStorage messagingAndStorage = new MessagingAndStorage(
-                        InternalMessaging.instance(), // Replace with the messaging you chose
-                        InternalStorage.instance());  // Replace with the storage you chose
-                List<Bundle> bundles = new ArrayList<>();
-                // Add your bundles here
-                return bundles;
-            }
+Note that injecting Spring Beans in Domain components is not recommended as you might mix up non-domain and domain
+logic. In some particular cases however, this might be the preferred approach (e.g. when domain services rely on
+non-domain features like sending e-mails, etc.).
+
+Below an example of configuration file to add to your application in order to automatically build and start a
+Pousse-Café Runtime:
+
+    @Configuration
+    @ComponentScan(basePackages = { "poussecafe.spring" }) // Required in order to enable the bridge
+    public class YourConfiguration {
+    
+        @Override
+        protected Bundles bundles(Messaging messaging,
+                Storage storage) {
+            MessagingAndStorage messagingAndStorage = new MessagingAndStorage(messaging, storage);
+            return new Bundles.Builder()
+                // Register your bundles here using withBundle and use messagingAndStorage
+                // when building them
+                .build();
         }
+    }
 
-## Runtime configuration properties
+Note that if you are using a custom Messaging and/or Storage, you'll have to use the specific types for `bundles`
+method's arguments.
 
-`RuntimeConfiguration` configures the Runtime by looking for below properties:
+Finally, note that a Spring Bean may define custom message listeners (i.e. contain methods annotated with
+`@MessageListener`). In that case, extending `MessageListeningBean` automatically registers the listeners upon
+Bean's initialization.
+
+## Properties
+
+The following properties are used to customize Pousse-Café Runtime:
 
 - `poussecafe.core.failOnDeserializationError`: flag telling of deserialization errors should be considered as
 failures or not (default is false)
@@ -35,3 +54,13 @@ failures or not (default is false)
 - `poussecafe.core.consumptionMaxRetries`: the maximum number of consumption retries in case of collision (default is 50)
 - `poussecafe.core.consumptionBackOffCeiling`: the ceiling for back-off algorithm in case of collision (default is 10)
 - `poussecafe.core.consumptionBackOffSlotTime`: the slot time for back-off algorithm in case of collision (default is 3.0)
+
+## Configure your Maven project
+
+Add the following snippet to your POM:
+
+    <dependency>
+        <groupId>org.pousse-cafe-framework</groupId>
+        <artifactId>pousse-cafe-spring</artifactId>
+        <version>${poussecafe.spring.version}</version>
+    </dependency>
