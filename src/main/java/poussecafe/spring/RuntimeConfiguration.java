@@ -1,15 +1,18 @@
 package poussecafe.spring;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Properties;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.EnvironmentAware;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.EnumerablePropertySource;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.PropertySource;
 import poussecafe.apm.ApplicationPerformanceMonitoring;
 import poussecafe.messaging.internal.InternalMessaging;
 import poussecafe.processing.MessageConsumptionConfiguration;
@@ -21,7 +24,7 @@ import static java.util.stream.Collectors.toMap;
 
 @Configuration
 @ComponentScan(basePackageClasses = RuntimeConfiguration.class)
-public class RuntimeConfiguration {
+public class RuntimeConfiguration implements EnvironmentAware {
 
     @Bean
     public Runtime pousseCafeApplicationContext(
@@ -31,8 +34,7 @@ public class RuntimeConfiguration {
             @Value("${poussecafe.core.consumptionBackOffCeiling:10}") String consumptionBackOffCeiling,
             @Value("${poussecafe.core.consumptionBackOffSlotTime:3.0}") String consumptionBackOffSlotTime,
             @Autowired Bundles bundles,
-            @Autowired(required = false) ApplicationPerformanceMonitoring applicationPerformanceMonitoring,
-            @Autowired @Qualifier("configurationProperties") Properties configurationProperties) {
+            @Autowired(required = false) ApplicationPerformanceMonitoring applicationPerformanceMonitoring) {
         Runtime.Builder builder = new Runtime.Builder()
             .failOnDeserializationError(Boolean.valueOf(failOnDeserializationError))
             .processingThreads(Integer.parseInt(processingThreads))
@@ -41,7 +43,7 @@ public class RuntimeConfiguration {
                     .backOffCeiling(Integer.parseInt(consumptionBackOffCeiling))
                     .backOffSlotTime(Double.valueOf(consumptionBackOffSlotTime))
                     .build())
-            .withConfiguration(readConfiguration(configurationProperties))
+            .withConfiguration(readConfiguration())
             .withBundles(bundles);
         if(applicationPerformanceMonitoring != null) {
             builder.applicationPerformanceMonitoring(applicationPerformanceMonitoring);
@@ -59,15 +61,37 @@ public class RuntimeConfiguration {
         return InternalMessaging.instance();
     }
 
-    private Map<String, Object> readConfiguration(Properties properties) {
-        return properties.entrySet().stream()
+    private Map<String, Object> readConfiguration() {
+        return runtimeConfigurationProperties().entrySet().stream()
                 .filter(entry -> entry.getKey() != null && entry.getValue() != null)
                 .collect(toMap(entry -> entry.getKey().toString(), Entry::getValue));
     }
 
-    @ConfigurationProperties(prefix = "poussecafe.core.config")
     @Bean
-    public Properties configurationProperties() {
-        return new Properties();
+    public Map<String, Object> runtimeConfigurationProperties() {
+        var properties = new HashMap<String, Object>();
+        for(PropertySource<?> source : environment.getPropertySources()) {
+            if(source instanceof EnumerablePropertySource<?>) {
+                EnumerablePropertySource<?> enumerableSource = (EnumerablePropertySource<?>) source;
+                for(String propertyName : enumerableSource.getPropertyNames()) {
+                    if(propertyName.startsWith(POUSSECAFE_CORE_CONFIG_PROPERTY_PREFIX)) {
+                        properties.put(propertyName.substring(POUSSECAFE_CORE_CONFIG_PROPERTY_PREFIX.length()),
+                                enumerableSource.getProperty(propertyName));
+                    }
+                }
+            }
+        }
+        return properties;
+    }
+
+    private ConfigurableEnvironment environment;
+
+    private static final String POUSSECAFE_CORE_CONFIG_PROPERTY_PREFIX = "poussecafe.core.config.";
+
+    @Override
+    public void setEnvironment(Environment environment) {
+        if(environment instanceof ConfigurableEnvironment) {
+            this.environment = (ConfigurableEnvironment) environment;
+        }
     }
 }
