@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import poussecafe.apm.ApplicationPerformanceMonitoring;
 import poussecafe.messaging.internal.InternalMessaging;
@@ -19,6 +20,7 @@ import poussecafe.storage.internal.InternalStorage;
 import static java.util.stream.Collectors.toMap;
 
 @Configuration
+@ComponentScan(basePackageClasses = RuntimeConfiguration.class)
 public class RuntimeConfiguration {
 
     @Bean
