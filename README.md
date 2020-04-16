@@ -23,7 +23,7 @@ Below an example of configuration file to add to your application in order to au
 Pousse-Café Runtime:
 
     @Configuration
-    @ComponentScan(basePackages = { "poussecafe.spring" }) // Required in order to enable the bridge
+    @Import(RuntimeConfiguration.class) // Enables the bridge
     public class YourConfiguration {
     
         @Override
