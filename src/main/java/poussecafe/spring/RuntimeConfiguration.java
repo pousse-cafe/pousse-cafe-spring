@@ -1,18 +1,11 @@
 package poussecafe.spring;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Map.Entry;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.env.ConfigurableEnvironment;
-import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.Environment;
-import org.springframework.core.env.PropertySource;
+import org.springframework.lang.Nullable;
 import poussecafe.apm.ApplicationPerformanceMonitoring;
 import poussecafe.messaging.internal.InternalMessaging;
 import poussecafe.processing.MessageConsumptionConfiguration;
@@ -20,36 +13,44 @@ import poussecafe.runtime.Bundles;
 import poussecafe.runtime.Runtime;
 import poussecafe.storage.internal.InternalStorage;
 
-import static java.util.stream.Collectors.toMap;
-
 @Configuration
 @ComponentScan(basePackageClasses = RuntimeConfiguration.class)
 public class RuntimeConfiguration implements EnvironmentAware {
 
     @Bean
     public Runtime pousseCafeApplicationContext(
-            @Value("${poussecafe.core.failOnDeserializationError:false}") String failOnDeserializationError,
-            @Value("${poussecafe.core.processingThreads:1}") String processingThreads,
-            @Value("${poussecafe.core.consumptionMaxRetries:50}") String consumptionMaxRetries,
-            @Value("${poussecafe.core.consumptionBackOffCeiling:10}") String consumptionBackOffCeiling,
-            @Value("${poussecafe.core.consumptionBackOffSlotTime:3.0}") String consumptionBackOffSlotTime,
-            @Autowired Bundles bundles,
-            @Autowired(required = false) ApplicationPerformanceMonitoring applicationPerformanceMonitoring) {
+            Bundles bundles,
+            @Nullable ApplicationPerformanceMonitoring applicationPerformanceMonitoring) {
+
+        boolean failOnDeserializationError = pousseCafeProperties.booleanValue(
+                "poussecafe.core.failOnDeserializationError", false);
+        int processingThreads = pousseCafeProperties.intValue(
+                "poussecafe.core.processingThreads", DEFAULT_PROCESSING_THREADS);
+
+        int consumptionMaxRetries = pousseCafeProperties.intValue(
+                "poussecafe.core.consumptionMaxRetries", MessageConsumptionConfiguration.DEFAULT_CONSUMPTION_MAX_RETRIES);
+        int consumptionBackOffCeiling = pousseCafeProperties.intValue(
+                "poussecafe.core.consumptionBackOffCeiling", MessageConsumptionConfiguration.DEFAULT_CONSUMPTION_BACK_OFF_CEILING);
+        double consumptionBackOffSlotTime = pousseCafeProperties.doubleValue(
+                "poussecafe.core.consumptionBackOffSlotTime", MessageConsumptionConfiguration.DEFAULT_CONSUMPTION_BACK_OFF_SLOT_TIME);
+
         Runtime.Builder builder = new Runtime.Builder()
-            .failOnDeserializationError(Boolean.valueOf(failOnDeserializationError))
-            .processingThreads(Integer.parseInt(processingThreads))
+            .failOnDeserializationError(failOnDeserializationError)
+            .processingThreads(processingThreads)
             .messageConsumptionConfiguration(new MessageConsumptionConfiguration.Builder()
-                    .maxConsumptionRetries(Integer.parseInt(consumptionMaxRetries))
-                    .backOffCeiling(Integer.parseInt(consumptionBackOffCeiling))
-                    .backOffSlotTime(Double.valueOf(consumptionBackOffSlotTime))
+                    .maxConsumptionRetries(consumptionMaxRetries)
+                    .backOffCeiling(consumptionBackOffCeiling)
+                    .backOffSlotTime(consumptionBackOffSlotTime)
                     .build())
-            .withConfiguration(readConfiguration())
+            .withConfiguration(pousseCafeProperties.getConfigurationProperties())
             .withBundles(bundles);
         if(applicationPerformanceMonitoring != null) {
             builder.applicationPerformanceMonitoring(applicationPerformanceMonitoring);
         }
         return builder.build();
     }
+
+    private static final int DEFAULT_PROCESSING_THREADS = 1;
 
     @Bean
     public InternalStorage internalStorage() {
@@ -61,37 +62,10 @@ public class RuntimeConfiguration implements EnvironmentAware {
         return InternalMessaging.instance();
     }
 
-    private Map<String, Object> readConfiguration() {
-        return runtimeConfigurationProperties().entrySet().stream()
-                .filter(entry -> entry.getKey() != null && entry.getValue() != null)
-                .collect(toMap(entry -> entry.getKey().toString(), Entry::getValue));
-    }
-
-    @Bean
-    public Map<String, Object> runtimeConfigurationProperties() {
-        var properties = new HashMap<String, Object>();
-        for(PropertySource<?> source : environment.getPropertySources()) {
-            if(source instanceof EnumerablePropertySource<?>) {
-                EnumerablePropertySource<?> enumerableSource = (EnumerablePropertySource<?>) source;
-                for(String propertyName : enumerableSource.getPropertyNames()) {
-                    if(propertyName.startsWith(POUSSECAFE_CORE_CONFIG_PROPERTY_PREFIX)) {
-                        properties.put(propertyName.substring(POUSSECAFE_CORE_CONFIG_PROPERTY_PREFIX.length()),
-                                enumerableSource.getProperty(propertyName));
-                    }
-                }
-            }
-        }
-        return properties;
-    }
-
-    private ConfigurableEnvironment environment;
-
-    private static final String POUSSECAFE_CORE_CONFIG_PROPERTY_PREFIX = "poussecafe.core.config.";
+    private PousseCafeProperties pousseCafeProperties = new PousseCafeProperties();
 
     @Override
     public void setEnvironment(Environment environment) {
-        if(environment instanceof ConfigurableEnvironment) {
-            this.environment = (ConfigurableEnvironment) environment;
-        }
+        pousseCafeProperties.setEnvironment(environment);
     }
 }
