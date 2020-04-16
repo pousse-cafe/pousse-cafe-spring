@@ -55,6 +55,10 @@ failures or not (default is false)
 - `poussecafe.core.consumptionBackOffCeiling`: the ceiling for back-off algorithm in case of collision (default is 10)
 - `poussecafe.core.consumptionBackOffSlotTime`: the slot time for back-off algorithm in case of collision (default is 3.0)
 
+Also, properties with keys starting with `poussecafe.config.` are automatically added to
+[Runtime's configuration](http://www.pousse-cafe-framework.org/doc/reference-guide/#configuring-services).
+For example, property `poussecafe.config.X = Y` will cause configuration to contain have value `Y` with key  `X`.
+
 ## Configure your Maven project
 
 Add the following snippet to your POM:
