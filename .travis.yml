@@ -6,9 +6,12 @@ addons:
     - graphviz
 jdk:
 - oraclejdk11
+install: []
+script:
+- mvn verify -B -U -Dmaven.javadoc.skip=true
 after_success:
 - wget -O settings.xml https://raw.githubusercontent.com/pousse-cafe/pousse-cafe-deploy/master/snapshot_release_settings.xml
-- "./can_auto_deploy.sh && mvn deploy --settings settings.xml"
+- ./can_auto_deploy.sh && mvn deploy --settings settings.xml -Dmaven.javadoc.skip=true -DskipTests
 env:
   global:
   - secure: SWU7Hyt3/tcyMGtm5V584DhU7C7ifG18xzzuWb+D2Sgg/kP2Wi46m564Aqvq8KOTGHWO1b8nHWea0GIXkTm3EbGEPvPD12an00ZsdEN5c7YNnWTRKC0sdXawEvcwoliZ9fLgnGFj4ZsWXRQXeDMEIl/HiLzZB2L89pCBaNz3o44Uo2LDFcE1RpSv0f22h1CEh+cNmI1t/YPF8LIQe54VXBpBxKDaT1vBJfp2CmJXh+LZcYnkOYhchC0lp74ielH+Dh1oGOfdz05myUY9HQNaAbFsl1VFNabMHg5Ux5hblHJcYVZqVY74CG3gkCv61NBA5GM6+avy3/R39ebiguJKwkqSgUGHcMSUT5ytB29RMbgT+lKqisfagIv2K+14oXcBF3FTIPy/HrPM8pq6MA74WZ/5hy9hFu8jobaeyCzn+tR34+rfy3kPtrdOuJ4qW0+Hask7DK98x7IdAnu++vON662LmLYImR8vEFZF5KF4R+/WkS4ZxXq5VUTq2NiL2t9zhFA/AbIeuu5u8/JPeQeH6W2VVxKw/He40JPr+eaxY+2LZWG1LVMPGHORPFd1tImBm5XetilUiM4dN8MrukPJTccPj8wAv9++phv+5aLxcYbe0RdQD03dwfeSNJ5GtZbBQvdsXIEMvUHRl0fijioD6JpKNK2LGtmj1rZtJjux7cI=
